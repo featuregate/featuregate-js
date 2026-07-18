@@ -3,6 +3,12 @@
   "extends": ["config:best-practices"],
   "packageRules": [
     {
+      "description": "Keep GitHub-authored Actions on readable floating version tags.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["actions/**", "github/**"],
+      "pinDigests": false
+    },
+    {
       "description": "Group non-major development dependency updates.",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
