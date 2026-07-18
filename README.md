@@ -2,22 +2,22 @@
 
 [![CI](https://github.com/featuregate/featuregate-js/actions/workflows/ci.yml/badge.svg)](https://github.com/featuregate/featuregate-js/actions/workflows/ci.yml)
 
-The official JavaScript and TypeScript server SDK for [FeatureGate](https://featuregate.dev), a
-feature flag platform for safely controlling releases in Node.js applications.
+The official Node.js SDK for [FeatureGate](https://featuregate.dev), a feature flag platform for
+safely controlling releases in server applications.
 
 ## Packages
 
-| Package               | Use it for                                        | Credential                |
-| --------------------- | ------------------------------------------------- | ------------------------- |
-| `@featuregate/server` | Local flag evaluation in trusted Node.js services | Secret server runtime key |
+| Package             | Use it for                                        | Credential                |
+| ------------------- | ------------------------------------------------- | ------------------------- |
+| `@featuregate/node` | Local flag evaluation in trusted Node.js services | Secret server runtime key |
 
-`@featuregate/server` loads an environment snapshot, evaluates flags locally, refreshes the
+`@featuregate/node` loads an environment snapshot, evaluates flags locally, refreshes the
 snapshot in the background, and keeps serving the last successful configuration through transient
-failures. See its [package documentation](./packages/server/README.md) for the complete API.
+failures. See its [package documentation](./packages/node/README.md) for the complete API.
 
 ## Security model
 
-The server SDK uses secret runtime keys. Keep these keys in trusted process environments and never
+The Node.js SDK uses secret runtime keys. Keep these keys in trusted process environments and never
 include them in browser or mobile application bundles. Authorization, entitlements, billing
 decisions, and other security-sensitive checks must continue to be enforced by your application.
 
@@ -57,7 +57,7 @@ typecheck, and test tasks; Oxlint checks the workspace as a whole.
 ├── packages/
 │   ├── README.md             # Workspace package map
 │   ├── evaluation/           # Private runtime-neutral evaluation primitives
-│   ├── server/               # Publishable Node.js server SDK
+│   ├── node/                 # Publishable Node.js SDK
 │   └── tsconfig/             # Private shared TypeScript configuration
 ├── package.json              # Private npm workspace root
 └── turbo.json                # Monorepo task graph

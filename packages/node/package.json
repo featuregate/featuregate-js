@@ -1,7 +1,7 @@
 {
-  "name": "@featuregate/server",
+  "name": "@featuregate/node",
   "version": "0.1.0",
-  "description": "Official server-side JavaScript and TypeScript SDK for FeatureGate.",
+  "description": "Official Node.js SDK for FeatureGate.",
   "keywords": [
     "feature-flags",
     "feature-toggle",
@@ -17,7 +17,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/featuregate/featuregate-js.git",
-    "directory": "packages/server"
+    "directory": "packages/node"
   },
   "files": [
     "dist",

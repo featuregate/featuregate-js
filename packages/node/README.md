@@ -1,7 +1,7 @@
-# @featuregate/server
+# @featuregate/node
 
-FeatureGate's official server-side JavaScript and TypeScript SDK. It loads an environment snapshot
-from FeatureGate, evaluates flags locally, and refreshes configuration in the background.
+FeatureGate's official Node.js SDK. It loads an environment snapshot from FeatureGate, evaluates
+flags locally, and refreshes configuration in the background.
 
 ## Requirements
 
@@ -13,7 +13,7 @@ The package is ESM-only.
 ## Installation
 
 ```sh
-npm install @featuregate/server
+npm install @featuregate/node
 ```
 
 ## Quick start
@@ -21,7 +21,7 @@ npm install @featuregate/server
 Create one shared `FeatureGate` instance for each runtime API key and reuse it across requests.
 
 ```ts
-import { FeatureGate } from "@featuregate/server";
+import { FeatureGate } from "@featuregate/node";
 
 const featureGate = new FeatureGate({
   runtimeApiKey: process.env.FEATUREGATE_RUNTIME_API_KEY!,
@@ -165,7 +165,7 @@ All SDK errors extend `FeatureGateError`:
 | `FeatureGateRequestError`        | A request failed, timed out, was rate limited, or hit 5xx. |
 
 ```ts
-import { FeatureGate, FeatureGateAuthenticationError } from "@featuregate/server";
+import { FeatureGate, FeatureGateAuthenticationError } from "@featuregate/node";
 
 try {
   await featureGate.initialize();

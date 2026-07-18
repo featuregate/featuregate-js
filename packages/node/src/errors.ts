@@ -1,4 +1,4 @@
-/** Base class for errors raised by the FeatureGate server SDK. */
+/** Base class for errors raised by the FeatureGate Node.js SDK. */
 export class FeatureGateError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
