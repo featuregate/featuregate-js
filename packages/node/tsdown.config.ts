@@ -15,4 +15,11 @@ export default defineConfig({
   entry: ["./src/index.ts"],
   outDir: "dist",
   platform: "node",
+  publint: {
+    strict: true,
+  },
+  attw: {
+    profile: "esm-only",
+    level: "error",
+  },
 });
