@@ -32,9 +32,16 @@ export class FeatureGateConfigurationError extends FeatureGateError {
 export class FeatureGateRequestError extends FeatureGateError {
   /** HTTP status associated with the error, when available. */
   readonly status: number | undefined;
+  /** Server-requested minimum delay before retrying, when available. */
+  readonly retryAfterMs: number | undefined;
 
-  constructor(message: string, status?: number, options?: ErrorOptions) {
+  constructor(
+    message: string,
+    status?: number,
+    options?: ErrorOptions & { retryAfterMs?: number },
+  ) {
     super(message, options);
     this.status = status;
+    this.retryAfterMs = options?.retryAfterMs;
   }
 }

@@ -82,6 +82,36 @@ describe("RemoteSnapshotLoader", () => {
     await expect(loader.load()).rejects.toBeInstanceOf(FeatureGateRequestError);
   });
 
+  it("preserves Retry-After guidance on rate limits", async () => {
+    const loader = new RemoteSnapshotLoader({
+      ...options,
+      fetch: async () => new Response(null, { headers: { "retry-after": "7" }, status: 429 }),
+    });
+
+    const error = await loader.load().catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(FeatureGateRequestError);
+    expect((error as FeatureGateRequestError).retryAfterMs).toBe(7_000);
+  });
+
+  it("opens an authenticated event stream", async () => {
+    let request: { input: string | URL | Request; init?: RequestInit } | undefined;
+    const loader = new RemoteSnapshotLoader({
+      ...options,
+      fetch: async (input, init) => {
+        request = { input, init };
+        return new Response("event: heartbeat\ndata: {}\n\n");
+      },
+    });
+    const controller = new AbortController();
+
+    await expect(loader.openStream(controller.signal)).resolves.toBeInstanceOf(Response);
+    expect(request?.input).toBe("https://api.example.test/v1/snapshot/stream");
+    expect(new Headers(request?.init?.headers).get("accept")).toBe("text/event-stream");
+    expect(new Headers(request?.init?.headers).get("authorization")).toBe("Bearer fg_runtime_test");
+    expect(request?.init?.signal).toBe(controller.signal);
+  });
+
   it.each([
     ["an unsuccessful response", () => new Response(null, { status: 400 })],
     ["invalid JSON", () => new Response("not json")],

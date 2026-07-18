@@ -34,31 +34,36 @@ const checkoutEnabled = featureGate.getBooleanValue("checkout", false, {
   targetingKey: "customer-123",
 });
 
-// Stop background polling during application shutdown.
+// Stop streaming, polling, and in-flight SDK requests during application shutdown.
 featureGate.close();
 ```
 
 `initialize()` loads the first remote snapshot. Concurrent initialization calls share the same
-request, and a failed initialization can be retried. Once initialized, the SDK polls every 30
-seconds by default. Failed refreshes keep the last successful snapshot available.
+request, and a failed initialization can be retried. Once initialized, the SDK opens a best-effort
+snapshot invalidation stream and retains 30-second polling as its authoritative fallback. Failed
+refreshes keep the last successful snapshot available.
 
 ## Configuration
 
 `FeatureGate` requires `runtimeApiKey`, `flags`, or both.
 
-| Option             | Type                                | Default                       | Description                                                       |
-| ------------------ | ----------------------------------- | ----------------------------- | ----------------------------------------------------------------- |
-| `runtimeApiKey`    | `string`                            | —                             | Secret key used to load the environment snapshot.                 |
-| `flags`            | `FeatureGateFlags`                  | `{}`                          | In-memory flags available immediately for local evaluation.       |
-| `apiBaseUrl`       | `string`                            | `https://api.featuregate.dev` | FeatureGate API base URL.                                         |
-| `fetch`            | `typeof fetch`                      | `globalThis.fetch`            | Custom fetch implementation, primarily for tests or custom hosts. |
-| `pollIntervalMs`   | `number`                            | `30000`                       | Refresh interval. Set to `0` to disable automatic polling.        |
-| `requestTimeoutMs` | `number`                            | `2000`                        | Maximum duration of each snapshot request.                        |
-| `onError`          | `(error: FeatureGateError) => void` | —                             | Called when an automatic refresh fails.                           |
+| Option             | Type                                          | Default                       | Description                                                             |
+| ------------------ | --------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `runtimeApiKey`    | `string`                                      | —                             | Secret key used to load the environment snapshot.                       |
+| `flags`            | `FeatureGateFlags`                            | `{}`                          | In-memory flags available immediately for local evaluation.             |
+| `apiBaseUrl`       | `string`                                      | `https://api.featuregate.dev` | FeatureGate API base URL.                                               |
+| `fetch`            | `typeof fetch`                                | `globalThis.fetch`            | Custom fetch implementation, primarily for tests or custom hosts.       |
+| `syncMode`         | `"streaming" \| "polling" \| "manual"`        | `"streaming"`                 | Background synchronization strategy for remote clients.                 |
+| `pollIntervalMs`   | `number`                                      | `30000`                       | Polling cadence and streaming safety-net interval.                      |
+| `requestTimeoutMs` | `number`                                      | `2000`                        | Maximum duration of each snapshot request.                              |
+| `onError`          | `(error: FeatureGateError) => void`           | —                             | Called when background polling or streaming fails.                      |
+| `onSnapshotChange` | `(change: FeatureGateSnapshotChange) => void` | —                             | Called after a different remote snapshot version is atomically applied. |
+| `onStatusChange`   | `(status: FeatureGateStatus) => void`         | —                             | Called when observable lifecycle, freshness, or stream state changes.   |
 
-The `onError` callback is for background polling failures. Errors from `initialize()` and
-`refresh()` are returned through their rejected promises. An exception thrown by `onError` is
-isolated by the SDK and does not stop future refresh attempts.
+Errors from `initialize()` and `refresh()` are returned through their rejected promises. Callback
+exceptions are isolated by the SDK and do not stop synchronization. Existing clients that set
+`pollIntervalMs: 0` without `syncMode` continue to use manual synchronization with no background
+network work.
 
 ## Evaluating flags
 
@@ -136,6 +141,28 @@ You can provide both `flags` and `runtimeApiKey` to make bootstrap values availa
 initialization completes. Bootstrap values remain available if initialization fails and are
 atomically replaced after a successful refresh.
 
+## Synchronization and status
+
+Remote clients use `streaming` mode by default. The stream carries only version and invalidation
+hints; the SDK always refetches `/v1/snapshot` with ETag revalidation before changing local flags.
+Polling continues as a safety net if the stream disconnects. Use `polling` for hosts that cannot
+keep long-lived HTTP connections, or `manual` when only explicit `refresh()` calls are wanted.
+
+Use `getStatus()` for readiness and freshness checks:
+
+```ts
+const status = featureGate.getStatus();
+
+console.log(status.state); // not_ready, ready, stale, error, or closed
+console.log(status.snapshotSource); // none, local, bootstrap, or remote
+console.log(status.snapshotVersion);
+console.log(status.streamState); // disabled, connecting, connected, or reconnecting
+```
+
+Transient refresh failures mark an available snapshot as `stale` while continuing to serve it.
+Authentication, configuration, and pre-snapshot request failures produce `error`. A later
+successful refresh returns the client to `ready` and clears the redacted `lastError` summary.
+
 ## Refreshing and shutdown
 
 Call `refresh()` to request configuration immediately:
@@ -151,8 +178,9 @@ if (result.status === "updated") {
 Concurrent refresh calls share one request. FeatureGate uses ETag revalidation, so an unchanged
 snapshot returns `not_modified` without replacing local state.
 
-Call `close()` during application shutdown. It stops automatic polling while leaving the last
-snapshot available for evaluation.
+Call `close()` during application shutdown. It stops streaming and polling, aborts in-flight SDK
+requests, and leaves the last snapshot available for evaluation. Further lifecycle calls reject
+with `FeatureGateConfigurationError`.
 
 ## Errors
 

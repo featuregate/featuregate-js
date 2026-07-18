@@ -6,7 +6,16 @@ export {
 } from "./errors";
 export type { FeatureGateOptions } from "./featuregate";
 export { FeatureGate } from "./featuregate";
-export type { FeatureGateRefreshResult } from "./types";
+export type {
+  FeatureGateErrorSummary,
+  FeatureGateRefreshResult,
+  FeatureGateSnapshotChange,
+  FeatureGateSnapshotSource,
+  FeatureGateState,
+  FeatureGateStatus,
+  FeatureGateStreamState,
+  FeatureGateSyncMode,
+} from "./types";
 
 export type {
   FeatureGateEvaluationContext,
