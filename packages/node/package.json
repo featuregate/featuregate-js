@@ -50,14 +50,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@arethetypeswrong/core": "^0.18.5",
+    "@arethetypeswrong/core": "0.18.5",
     "@featuregate/evaluation": "*",
     "@featuregate/tsconfig": "*",
-    "@types/node": "^24.13.3",
-    "publint": "^0.3.21",
-    "tsdown": "^0.22.9",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "@types/node": "24.13.3",
+    "publint": "0.3.21",
+    "tsdown": "0.22.9",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
   },
   "engines": {
     "node": ">=22"
