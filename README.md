@@ -54,7 +54,6 @@ npm install
 Run the relevant quality checks:
 
 ```sh
-npm run format:check
 npm run lint
 npm run typecheck
 npm run test
@@ -78,9 +77,9 @@ typecheck, and test tasks as SDK workspaces are added; Oxlint checks the workspa
 
 ## Contributing
 
-The SDK extraction is in progress. Before opening a change, run the relevant formatting, linting,
-typechecking, testing, and build commands, and keep credential boundaries explicit in code, tests,
-and documentation. Bugs and proposals can be filed through
+The SDK extraction is in progress. Before opening a change, run the relevant linting, typechecking,
+testing, and build commands, and keep credential boundaries explicit in code, tests, and
+documentation. Bugs and proposals can be filed through
 [GitHub Issues](https://github.com/featuregate/featuregate-js/issues).
 
 ## License
