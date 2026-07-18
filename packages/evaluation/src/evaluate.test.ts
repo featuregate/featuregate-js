@@ -4,153 +4,104 @@ import { evaluateFlag, type FeatureGateFlags } from "./index";
 
 const flags = {
   checkout: {
-    disabledValue: false,
-    enabled: true,
-    enabledValue: true,
+    defaultValue: true,
   },
   maintenance: {
-    disabledValue: false,
-    enabled: false,
-    enabledValue: true,
+    defaultValue: true,
+    killSwitch: true,
   },
   heading: {
-    disabledValue: "Unavailable",
-    enabled: true,
-    enabledValue: "Welcome",
+    defaultValue: "Welcome",
   },
   regionalCheckout: {
-    disabledValue: false,
-    enabled: true,
-    enabledValue: false,
+    defaultValue: false,
     rules: [
       {
-        conditions: [{ attribute: "country", operator: "equals", value: "AU" }],
+        conditions: [
+          {
+            attributePath: "account.plan",
+            operator: "equals",
+            type: "attribute_match",
+            value: "pro",
+          },
+          {
+            attributePath: "country",
+            operator: "in",
+            type: "attribute_match",
+            value: ["AU", "NZ"],
+          },
+        ],
+        conditionsMatch: "all",
         value: true,
       },
-      {
-        conditions: [{ attribute: "country", operator: "equals", value: "AU" }],
-        value: false,
-      },
     ],
-  },
-  gradualCheckout: {
-    disabledValue: false,
-    enabled: true,
-    enabledValue: false,
-    rollout: {
-      allocations: [{ value: true, weight: 100_000 }],
-      seed: "gradual-checkout-v1",
-    },
   },
 } satisfies FeatureGateFlags;
 
 describe("evaluateFlag", () => {
-  it("returns the enabled value", () => {
-    expect(
-      evaluateFlag({
-        defaultValue: false,
-        flagKey: "checkout",
-        flags,
-      }),
-    ).toEqual({
+  it("returns the environment default", () => {
+    expect(evaluateFlag({ defaultValue: false, flagKey: "checkout", flags })).toEqual({
       flagKey: "checkout",
-      reason: "enabled",
+      reason: "environment_default",
       usedDefault: false,
       value: true,
     });
   });
 
-  it("returns the disabled value", () => {
-    expect(
-      evaluateFlag({
-        defaultValue: true,
-        flagKey: "maintenance",
-        flags,
-      }),
-    ).toEqual({
+  it("forces a killed boolean flag off", () => {
+    expect(evaluateFlag({ defaultValue: true, flagKey: "maintenance", flags })).toEqual({
       flagKey: "maintenance",
-      reason: "disabled",
+      reason: "kill_switch",
       usedDefault: false,
       value: false,
     });
   });
 
-  it("returns the caller default when the flag does not exist", () => {
-    expect(
-      evaluateFlag({
-        defaultValue: false,
-        flagKey: "missing",
-        flags,
-      }),
-    ).toEqual({
-      flagKey: "missing",
+  it("returns the caller default for missing flags and type mismatches", () => {
+    expect(evaluateFlag({ defaultValue: false, flagKey: "missing", flags })).toMatchObject({
       reason: "flag_not_found",
       usedDefault: true,
       value: false,
     });
-  });
-
-  it("returns the caller default when the requested type does not match", () => {
-    expect(
-      evaluateFlag({
-        defaultValue: false,
-        flagKey: "heading",
-        flags,
-      }),
-    ).toEqual({
-      flagKey: "heading",
+    expect(evaluateFlag({ defaultValue: false, flagKey: "heading", flags })).toMatchObject({
       reason: "type_mismatch",
       usedDefault: true,
       value: false,
     });
   });
 
-  it("returns the first value whose conditions match", () => {
+  it("matches nested attributes and list operators", () => {
     expect(
       evaluateFlag({
-        context: {
-          attributes: { country: "AU" },
-          targetingKey: "customer-123",
-        },
+        context: { attributes: { account: { plan: "pro" }, country: "AU" } },
         defaultValue: false,
         flagKey: "regionalCheckout",
         flags,
       }),
-    ).toEqual({
-      flagKey: "regionalCheckout",
-      reason: "rule_match",
-      usedDefault: false,
-      value: true,
-    });
+    ).toMatchObject({ reason: "targeting_match", usedDefault: false, value: true });
   });
 
-  it("falls back to the enabled value when no rule matches", () => {
-    expect(
-      evaluateFlag({
-        context: {
-          attributes: { country: "NZ" },
-          targetingKey: "customer-123",
-        },
-        defaultValue: true,
-        flagKey: "regionalCheckout",
-        flags,
-      }),
-    ).toMatchObject({
-      reason: "enabled",
-      usedDefault: false,
-      value: false,
-    });
-  });
-
-  it("matches the targeting key as a built-in attribute", () => {
+  it("supports any-condition rules and the built-in targeting key", () => {
     const targetedFlags = {
       checkout: {
-        disabledValue: false,
-        enabled: true,
-        enabledValue: false,
+        defaultValue: false,
         rules: [
           {
-            conditions: [{ attribute: "targetingKey", operator: "equals", value: "customer-123" }],
+            conditions: [
+              {
+                attributePath: "country",
+                operator: "equals",
+                type: "attribute_match",
+                value: "US",
+              },
+              {
+                attributePath: "targetingKey",
+                operator: "equals",
+                type: "attribute_match",
+                value: "customer-123",
+              },
+            ],
+            conditionsMatch: "any",
             value: true,
           },
         ],
@@ -164,21 +115,24 @@ describe("evaluateFlag", () => {
         flagKey: "checkout",
         flags: targetedFlags,
       }),
-    ).toMatchObject({
-      reason: "rule_match",
-      value: true,
-    });
+    ).toMatchObject({ reason: "targeting_match", value: true });
   });
 
-  it("returns the caller default when a matched rule has the wrong type", () => {
+  it("matches list exclusions only when the value is outside the list", () => {
     const targetedFlags = {
-      heading: {
-        disabledValue: "Unavailable",
-        enabled: true,
-        enabledValue: "Welcome",
+      checkout: {
+        defaultValue: false,
         rules: [
           {
-            conditions: [{ attribute: "plan", operator: "equals", value: "pro" }],
+            conditions: [
+              {
+                attributePath: "account.plan",
+                operator: "not_in",
+                type: "attribute_match",
+                value: ["free", "starter"],
+              },
+            ],
+            conditionsMatch: "all",
             value: true,
           },
         ],
@@ -187,47 +141,43 @@ describe("evaluateFlag", () => {
 
     expect(
       evaluateFlag({
-        context: {
-          attributes: { plan: "pro" },
-          targetingKey: "customer-123",
-        },
-        defaultValue: "Default heading",
-        flagKey: "heading",
+        context: { attributes: { account: { plan: "pro" } } },
+        defaultValue: false,
+        flagKey: "checkout",
         flags: targetedFlags,
       }),
-    ).toMatchObject({
-      reason: "type_mismatch",
-      usedDefault: true,
-      value: "Default heading",
-    });
-  });
-
-  it("returns a rollout value when a targeting key is available", () => {
+    ).toMatchObject({ reason: "targeting_match", value: true });
     expect(
       evaluateFlag({
-        context: { targetingKey: "customer-123" },
+        context: { attributes: { account: { plan: "free" } } },
         defaultValue: false,
-        flagKey: "gradualCheckout",
-        flags,
+        flagKey: "checkout",
+        flags: targetedFlags,
       }),
-    ).toMatchObject({
-      reason: "rollout",
-      usedDefault: false,
-      value: true,
-    });
+    ).toMatchObject({ reason: "environment_default", value: false });
   });
 
-  it("falls back to the enabled value when no targeting key is available", () => {
+  it("evaluates percentage conditions from stable nested attributes", () => {
+    const rolloutFlags = {
+      checkout: {
+        defaultValue: false,
+        rules: [
+          {
+            conditions: [{ attributePath: "user.id", percentage: 100, type: "percentage_rollout" }],
+            conditionsMatch: "all",
+            value: true,
+          },
+        ],
+      },
+    } satisfies FeatureGateFlags;
+
     expect(
       evaluateFlag({
-        defaultValue: true,
-        flagKey: "gradualCheckout",
-        flags,
+        context: { attributes: { user: { id: "user-123" } } },
+        defaultValue: false,
+        flagKey: "checkout",
+        flags: rolloutFlags,
       }),
-    ).toMatchObject({
-      reason: "enabled",
-      usedDefault: false,
-      value: false,
-    });
+    ).toMatchObject({ reason: "targeting_match", value: true });
   });
 });

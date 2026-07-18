@@ -2,6 +2,9 @@ export type { FeatureGateOptions } from "./featuregate";
 export { FeatureGate } from "./featuregate";
 
 export type {
+  FeatureGateAttributeCondition,
+  FeatureGateComparisonScalar,
+  FeatureGateComparisonValue,
   FeatureGateCondition,
   FeatureGateConditionOperator,
   FeatureGateEvaluationContext,
@@ -13,7 +16,8 @@ export type {
   FeatureGateJsonObject,
   FeatureGateJsonPrimitive,
   FeatureGateJsonValue,
-  FeatureGateRollout,
-  FeatureGateRolloutAllocation,
+  FeatureGateListCondition,
+  FeatureGatePercentageCondition,
   FeatureGateRule,
+  FeatureGateScalarCondition,
 } from "@featuregate/evaluation";

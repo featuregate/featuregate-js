@@ -17,15 +17,11 @@ export type FeatureGateFlagValue = boolean | string | number | FeatureGateJsonOb
 
 /** A locally evaluable FeatureGate flag definition. */
 export interface FeatureGateFlag {
-  /** The value returned while the flag is disabled. */
-  disabledValue: FeatureGateFlagValue;
-  /** Whether targeting and rollout evaluation are active for the flag. */
-  enabled: boolean;
-  /** The value returned when no enabled rule or rollout allocation is selected. */
-  enabledValue: FeatureGateFlagValue;
-  /** An optional deterministic percentage rollout. */
-  rollout?: FeatureGateRollout;
-  /** Ordered targeting rules evaluated before the rollout. */
+  /** The environment value returned when no targeting rule matches. */
+  defaultValue: FeatureGateFlagValue;
+  /** Whether the flag is being forced off by its emergency kill switch. */
+  killSwitch?: boolean;
+  /** Ordered targeting rules evaluated before the environment default. */
   rules?: readonly FeatureGateRule[];
 }
 
@@ -36,54 +32,77 @@ export type FeatureGateFlags = Readonly<Record<string, FeatureGateFlag>>;
 export interface FeatureGateEvaluationContext {
   /** Custom attributes available to targeting conditions. */
   attributes?: FeatureGateJsonObject;
-  /** A stable subject identifier used by targeting and deterministic rollouts. */
-  targetingKey: string;
+  /** A stable subject identifier available as the built-in `targetingKey` attribute. */
+  targetingKey?: string;
 }
 
-/** A targeting condition operator supported by the local evaluator. */
-export type FeatureGateConditionOperator = "equals";
+/** A comparison supported by an attribute targeting condition. */
+export type FeatureGateConditionOperator = "equals" | "in" | "not_equals" | "not_in";
+
+/** A scalar value supported by targeting comparisons. */
+export type FeatureGateComparisonScalar = FeatureGateJsonPrimitive;
+
+/** A scalar or list of scalars supported by targeting comparisons. */
+export type FeatureGateComparisonValue =
+  | FeatureGateComparisonScalar
+  | readonly FeatureGateComparisonScalar[];
 
 /** A comparison performed against an evaluation-context attribute. */
-export interface FeatureGateCondition {
-  /** The context attribute to read, or `targetingKey` for the built-in targeting key. */
-  attribute: string;
-  /** The comparison performed by the condition. */
-  operator: FeatureGateConditionOperator;
-  /** The expected attribute value. */
-  value: FeatureGateJsonPrimitive;
+interface FeatureGateAttributeConditionBase {
+  /** Dot-separated path to an evaluation attribute, or `targetingKey`. */
+  attributePath: string;
+  /** Identifies this as an attribute comparison. */
+  type: "attribute_match";
 }
 
-/** An ordered targeting rule whose conditions must all match. */
+/** A scalar equality or inequality targeting condition. */
+export interface FeatureGateScalarCondition extends FeatureGateAttributeConditionBase {
+  /** The comparison performed by the condition. */
+  operator: "equals" | "not_equals";
+  /** The expected scalar value. */
+  value: FeatureGateComparisonScalar;
+}
+
+/** A list membership targeting condition. */
+export interface FeatureGateListCondition extends FeatureGateAttributeConditionBase {
+  /** The comparison performed by the condition. */
+  operator: "in" | "not_in";
+  /** The expected list of scalar values. */
+  value: readonly FeatureGateComparisonScalar[];
+}
+
+/** An attribute comparison supported by local evaluation. */
+export type FeatureGateAttributeCondition = FeatureGateScalarCondition | FeatureGateListCondition;
+
+/** A deterministic percentage check against one evaluation attribute. */
+export interface FeatureGatePercentageCondition {
+  /** Dot-separated path to the stable rollout attribute, or `targetingKey`. */
+  attributePath: string;
+  /** Percentage of buckets that match, from 0 through 100. */
+  percentage: number;
+  /** Identifies this as a percentage rollout. */
+  type: "percentage_rollout";
+}
+
+/** A condition supported by local evaluation. */
+export type FeatureGateCondition = FeatureGateAttributeCondition | FeatureGatePercentageCondition;
+
+/** An ordered targeting rule that serves a value when its conditions match. */
 export interface FeatureGateRule {
-  /** Conditions that must all match for this rule to be selected. */
+  /** Conditions evaluated by this rule. */
   conditions: readonly FeatureGateCondition[];
+  /** Whether every condition or at least one condition must match. */
+  conditionsMatch: "all" | "any";
   /** The value returned when this rule matches. */
   value: FeatureGateFlagValue;
 }
 
-/** A value and its integer weight within a percentage rollout. */
-export interface FeatureGateRolloutAllocation {
-  /** The value returned when this allocation is selected. */
-  value: FeatureGateFlagValue;
-  /** The allocation's integer bucket count out of 100,000. */
-  weight: number;
-}
-
-/** A deterministic rollout made up of ordered weighted allocations. */
-export interface FeatureGateRollout {
-  /** Ordered allocations whose weights should total 100,000. */
-  allocations: readonly FeatureGateRolloutAllocation[];
-  /** A server-generated value that controls deterministic bucket assignment. */
-  seed: string;
-}
-
 /** The reason an evaluation returned its final value. */
 export type FeatureGateEvaluationReason =
-  | "enabled"
-  | "disabled"
+  | "environment_default"
   | "flag_not_found"
-  | "rollout"
-  | "rule_match"
+  | "kill_switch"
+  | "targeting_match"
   | "type_mismatch";
 
 /** The value and metadata produced by a flag evaluation. */

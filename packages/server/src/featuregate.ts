@@ -7,19 +7,41 @@ import type {
 } from "@featuregate/evaluation";
 import { evaluateFlag } from "@featuregate/evaluation";
 
-/** Options for creating a {@link FeatureGate} instance. */
-export interface FeatureGateOptions {
-  /** The initial in-memory flag snapshot. */
-  flags: FeatureGateFlags;
+import { readSnapshotFlags } from "./snapshot";
+
+const DEFAULT_API_BASE_URL = "https://api.featuregate.dev";
+
+interface FeatureGateConfiguration {
+  /** Base URL for the FeatureGate API. */
+  apiBaseUrl?: string;
+  /** Fetch implementation used to load snapshots. Defaults to the runtime's global fetch. */
+  fetch?: typeof fetch;
+  /** An optional in-memory snapshot used before remote configuration is loaded. */
+  flags?: FeatureGateFlags;
+  /** Secret server runtime key used to load this environment's snapshot. */
+  runtimeApiKey?: string;
 }
 
 /**
- * Evaluates FeatureGate flags on the server from an in-memory flag snapshot.
+ * Options for creating a {@link FeatureGate} instance.
  *
- * The current implementation performs no network requests and evaluates every flag locally.
+ * At least a runtime API key or an in-memory flag snapshot must be provided.
+ */
+export type FeatureGateOptions = FeatureGateConfiguration &
+  ({ flags: FeatureGateFlags } | { runtimeApiKey: string });
+
+/**
+ * Loads FeatureGate configuration and evaluates flags locally on the server.
+ *
+ * Provide a runtime API key to load configuration from FeatureGate, an in-memory snapshot for
+ * fully local evaluation, or both to use the in-memory snapshot during initialization.
  */
 export class FeatureGate {
-  readonly #flags: FeatureGateFlags;
+  readonly #apiBaseUrl: string;
+  readonly #fetch: typeof fetch;
+  #flags: FeatureGateFlags;
+  #initialization: Promise<void> | undefined;
+  readonly #runtimeApiKey: string | undefined;
 
   /**
    * Creates a FeatureGate instance.
@@ -27,7 +49,48 @@ export class FeatureGate {
    * @param options - The initial client configuration.
    */
   constructor(options: FeatureGateOptions) {
-    this.#flags = options.flags;
+    this.#apiBaseUrl = (options.apiBaseUrl ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+    this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#flags = options.flags ?? {};
+    this.#runtimeApiKey = options.runtimeApiKey;
+  }
+
+  /**
+   * Loads the environment snapshot used for local evaluation.
+   *
+   * Call this during application startup before evaluating flags. If bootstrap flags were
+   * provided, they remain available when initialization fails.
+   *
+   * Concurrent and subsequent calls share the first initialization attempt.
+   *
+   * @returns A promise that resolves after the remote snapshot has been loaded.
+   * @throws When no runtime API key was provided, the request fails, or the response is invalid.
+   */
+  initialize(): Promise<void> {
+    if (!this.#runtimeApiKey) {
+      return Promise.reject(
+        new Error("FeatureGate requires a runtime API key to load remote configuration."),
+      );
+    }
+
+    this.#initialization ??= this.#loadSnapshot();
+
+    return this.#initialization;
+  }
+
+  async #loadSnapshot(): Promise<void> {
+    const response = await this.#fetch(`${this.#apiBaseUrl}/v1/snapshot`, {
+      headers: {
+        authorization: `Bearer ${this.#runtimeApiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`FeatureGate snapshot request failed with status ${response.status}.`);
+    }
+
+    // Replace the complete snapshot at once so evaluations never observe partial updates.
+    this.#flags = readSnapshotFlags(await response.json());
   }
 
   /**

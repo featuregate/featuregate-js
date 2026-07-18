@@ -1,6 +1,9 @@
 export { evaluateFlag, type FeatureGateEvaluationOptions } from "./evaluate";
 
 export type {
+  FeatureGateAttributeCondition,
+  FeatureGateComparisonScalar,
+  FeatureGateComparisonValue,
   FeatureGateCondition,
   FeatureGateConditionOperator,
   FeatureGateEvaluationContext,
@@ -12,7 +15,8 @@ export type {
   FeatureGateJsonObject,
   FeatureGateJsonPrimitive,
   FeatureGateJsonValue,
-  FeatureGateRollout,
-  FeatureGateRolloutAllocation,
+  FeatureGateListCondition,
+  FeatureGatePercentageCondition,
   FeatureGateRule,
+  FeatureGateScalarCondition,
 } from "./types";

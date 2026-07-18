@@ -1,40 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { getRolloutValue, selectRolloutValue } from "./rollouts";
-import type { FeatureGateRollout } from "./types";
+import { matchesPercentage } from "./rollouts";
 
-const rollout = {
-  allocations: [
-    { value: "control", weight: 25_000 },
-    { value: "treatment", weight: 75_000 },
-  ],
-  seed: "checkout-v1",
-} satisfies FeatureGateRollout;
-
-describe("selectRolloutValue", () => {
-  it("selects allocations using ordered percentage boundaries", () => {
-    expect(selectRolloutValue(rollout.allocations, 0)).toBe("control");
-    expect(selectRolloutValue(rollout.allocations, 24_999)).toBe("control");
-    expect(selectRolloutValue(rollout.allocations, 25_000)).toBe("treatment");
-    expect(selectRolloutValue(rollout.allocations, 99_999)).toBe("treatment");
-    expect(selectRolloutValue(rollout.allocations, 100_000)).toBeUndefined();
-  });
-});
-
-describe("getRolloutValue", () => {
-  it("returns the same allocation for the same flag and targeting key", () => {
-    const first = getRolloutValue(rollout, "checkout", "customer-123");
-    const second = getRolloutValue(rollout, "checkout", "customer-123");
-
-    expect(first).toBe(second);
+describe("matchesPercentage", () => {
+  it("is stable for the same flag and attribute", () => {
+    expect(matchesPercentage("checkout", "user.id", "user-123", 50)).toBe(
+      matchesPercentage("checkout", "user.id", "user-123", 50),
+    );
   });
 
-  it("distributes targeting keys across the configured allocations", () => {
-    const controlCount = Array.from({ length: 10_000 }, (_, index) =>
-      getRolloutValue(rollout, "checkout", `customer-${index}`),
-    ).filter((value) => value === "control").length;
+  it("respects empty and complete rollout boundaries", () => {
+    expect(matchesPercentage("checkout", "user.id", "user-123", 0)).toBe(false);
+    expect(matchesPercentage("checkout", "user.id", "user-123", 100)).toBe(true);
+  });
 
-    expect(controlCount).toBeGreaterThan(2_300);
-    expect(controlCount).toBeLessThan(2_700);
+  it("distributes identifiers across the configured percentage", () => {
+    const matchCount = Array.from({ length: 10_000 }, (_, index) =>
+      matchesPercentage("checkout", "user.id", `user-${index}`, 25),
+    ).filter(Boolean).length;
+
+    expect(matchCount).toBeGreaterThan(2_300);
+    expect(matchCount).toBeLessThan(2_700);
   });
 });
