@@ -6,8 +6,8 @@ export default defineConfig({
   banner: `/*! ${packageJson.name} v${packageJson.version} | MIT License | Copyright (c) 2026 Anthony Con Hagidimitriou */`,
   deps: {
     alwaysBundle: [/^@featuregate\/evaluation(?:\/|$)/],
-    neverBundle: ["@noble/hashes"],
-    onlyImport: ["@noble/hashes"],
+    neverBundle: ["@noble/hashes", "zod"],
+    onlyImport: ["@noble/hashes", "zod"],
   },
   dts: {
     eager: true,

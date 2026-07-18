@@ -7,9 +7,17 @@ import type {
 } from "@featuregate/evaluation";
 import { evaluateFlag } from "@featuregate/evaluation";
 
-import { readSnapshotFlags } from "./snapshot";
+import {
+  FeatureGateAuthenticationError,
+  FeatureGateConfigurationError,
+  FeatureGateRequestError,
+} from "./errors";
+import { readSnapshot } from "./snapshot";
+import type { FeatureGateRefreshResult } from "./types";
 
 const DEFAULT_API_BASE_URL = "https://api.featuregate.dev";
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 2_000;
 
 interface FeatureGateConfiguration {
   /** Base URL for the FeatureGate API. */
@@ -18,6 +26,10 @@ interface FeatureGateConfiguration {
   fetch?: typeof fetch;
   /** An optional in-memory snapshot used before remote configuration is loaded. */
   flags?: FeatureGateFlags;
+  /** How often to refresh the snapshot. Set to `0` to disable automatic polling. */
+  pollIntervalMs?: number;
+  /** Maximum duration of each snapshot request in milliseconds. */
+  requestTimeoutMs?: number;
   /** Secret server runtime key used to load this environment's snapshot. */
   runtimeApiKey?: string;
 }
@@ -38,10 +50,17 @@ export type FeatureGateOptions = FeatureGateConfiguration &
  */
 export class FeatureGate {
   readonly #apiBaseUrl: string;
+  #closed = false;
+  #etag: string | undefined;
   readonly #fetch: typeof fetch;
   #flags: FeatureGateFlags;
   #initialization: Promise<void> | undefined;
+  readonly #pollIntervalMs: number;
+  #pollTimer: ReturnType<typeof setInterval> | undefined;
+  #refresh: Promise<FeatureGateRefreshResult> | undefined;
+  readonly #requestTimeoutMs: number;
   readonly #runtimeApiKey: string | undefined;
+  #version: string | undefined;
 
   /**
    * Creates a FeatureGate instance.
@@ -52,6 +71,16 @@ export class FeatureGate {
     this.#apiBaseUrl = (options.apiBaseUrl ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
     this.#fetch = options.fetch ?? globalThis.fetch;
     this.#flags = options.flags ?? {};
+    this.#pollIntervalMs = readDuration(
+      "pollIntervalMs",
+      options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+      true,
+    );
+    this.#requestTimeoutMs = readDuration(
+      "requestTimeoutMs",
+      options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      false,
+    );
     this.#runtimeApiKey = options.runtimeApiKey;
   }
 
@@ -61,7 +90,8 @@ export class FeatureGate {
    * Call this during application startup before evaluating flags. If bootstrap flags were
    * provided, they remain available when initialization fails.
    *
-   * Concurrent and subsequent calls share the first initialization attempt.
+   * Concurrent calls share one initialization attempt. Failed attempts can be retried, while a
+   * successful initialization is reused. Polling starts unless `pollIntervalMs` is `0`.
    *
    * @returns A promise that resolves after the remote snapshot has been loaded.
    * @throws When no runtime API key was provided, the request fails, or the response is invalid.
@@ -69,28 +99,148 @@ export class FeatureGate {
   initialize(): Promise<void> {
     if (!this.#runtimeApiKey) {
       return Promise.reject(
-        new Error("FeatureGate requires a runtime API key to load remote configuration."),
+        new FeatureGateConfigurationError(
+          "FeatureGate requires a runtime API key to load remote configuration.",
+        ),
       );
     }
 
-    this.#initialization ??= this.#loadSnapshot();
+    this.#initialization ??= this.refresh()
+      .then(() => {
+        this.#startPolling();
+      })
+      .catch((error: unknown) => {
+        this.#initialization = undefined;
+        throw error;
+      });
 
     return this.#initialization;
   }
 
-  async #loadSnapshot(): Promise<void> {
-    const response = await this.#fetch(`${this.#apiBaseUrl}/v1/snapshot`, {
-      headers: {
-        authorization: `Bearer ${this.#runtimeApiKey}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`FeatureGate snapshot request failed with status ${response.status}.`);
+  /**
+   * Fetches and atomically applies the latest FeatureGate snapshot.
+   *
+   * Concurrent calls share one request. Failed refreshes leave the previous snapshot available.
+   *
+   * @returns Whether the local snapshot changed and the current snapshot version.
+   * @throws A typed FeatureGate error when the request or response is unsuccessful.
+   */
+  refresh(): Promise<FeatureGateRefreshResult> {
+    if (!this.#runtimeApiKey) {
+      return Promise.reject(
+        new FeatureGateConfigurationError(
+          "FeatureGate requires a runtime API key to refresh remote configuration.",
+        ),
+      );
     }
 
+    this.#refresh ??= this.#refreshSnapshot().finally(() => {
+      this.#refresh = undefined;
+    });
+
+    return this.#refresh;
+  }
+
+  /**
+   * Stops automatic snapshot polling.
+   *
+   * The last loaded snapshot remains available for local evaluation.
+   */
+  close(): void {
+    this.#closed = true;
+
+    if (this.#pollTimer) {
+      clearInterval(this.#pollTimer);
+      this.#pollTimer = undefined;
+    }
+  }
+
+  async #refreshSnapshot(): Promise<FeatureGateRefreshResult> {
+    const headers = new Headers({
+      authorization: `Bearer ${this.#runtimeApiKey}`,
+    });
+
+    if (this.#etag) {
+      headers.set("if-none-match", this.#etag);
+    }
+
+    let response: Response;
+
+    try {
+      response = await this.#fetch(`${this.#apiBaseUrl}/v1/snapshot`, {
+        headers,
+        signal: AbortSignal.timeout(this.#requestTimeoutMs),
+      });
+    } catch (cause) {
+      throw new FeatureGateRequestError("FeatureGate snapshot request failed.", undefined, {
+        cause,
+      });
+    }
+
+    if (response.status === 304) {
+      if (!this.#version) {
+        throw new FeatureGateConfigurationError(
+          "FeatureGate returned 304 before a snapshot was available.",
+          response.status,
+        );
+      }
+
+      return { status: "not_modified", version: this.#version };
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new FeatureGateAuthenticationError(
+        `FeatureGate rejected the runtime API key with status ${response.status}.`,
+        response.status,
+      );
+    }
+
+    if (response.status === 429 || response.status >= 500) {
+      throw new FeatureGateRequestError(
+        `FeatureGate snapshot request failed with status ${response.status}.`,
+        response.status,
+      );
+    }
+
+    if (!response.ok) {
+      throw new FeatureGateConfigurationError(
+        `FeatureGate snapshot request failed with status ${response.status}.`,
+        response.status,
+      );
+    }
+
+    let value: unknown;
+
+    try {
+      value = await response.json();
+    } catch (cause) {
+      throw new FeatureGateConfigurationError(
+        "FeatureGate returned an invalid snapshot response.",
+        response.status,
+        { cause },
+      );
+    }
+
+    const snapshot = readSnapshot(value);
+
     // Replace the complete snapshot at once so evaluations never observe partial updates.
-    this.#flags = readSnapshotFlags(await response.json());
+    this.#flags = snapshot.flags;
+    this.#version = snapshot.version;
+    this.#etag = response.headers.get("etag") ?? JSON.stringify(snapshot.version);
+
+    return { status: "updated", version: snapshot.version };
+  }
+
+  #startPolling(): void {
+    if (this.#closed || this.#pollIntervalMs === 0 || this.#pollTimer) {
+      return;
+    }
+
+    this.#pollTimer = setInterval(() => {
+      // A failed poll leaves the previous snapshot in place and the next interval retries.
+      void this.refresh().catch(() => undefined);
+    }, this.#pollIntervalMs);
+    this.#pollTimer.unref?.();
   }
 
   /**
@@ -230,4 +380,14 @@ export class FeatureGate {
   ): FeatureGateEvaluationResult<TValue> {
     return evaluateFlag({ context, defaultValue, flagKey, flags: this.#flags });
   }
+}
+
+function readDuration(name: string, value: number, allowZero: boolean): number {
+  if (!Number.isFinite(value) || (allowZero ? value < 0 : value <= 0)) {
+    throw new FeatureGateConfigurationError(
+      `${name} must be ${allowZero ? "zero or a positive number" : "a positive number"}.`,
+    );
+  }
+
+  return value;
 }

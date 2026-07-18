@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { readSnapshotFlags } from "./snapshot";
+import { readSnapshot } from "./snapshot";
 
-describe("readSnapshotFlags", () => {
+describe("readSnapshot", () => {
   it("normalizes and orders a valid runtime snapshot", () => {
     expect(
-      readSnapshotFlags({
+      readSnapshot({
         snapshot: {
           flags: [
             {
@@ -39,32 +39,36 @@ describe("readSnapshotFlags", () => {
               ],
             },
           ],
+          version: "snapshot-v1",
         },
       }),
     ).toEqual({
-      checkout: {
-        defaultValue: false,
-        killSwitch: false,
-        rules: [
-          {
-            conditions: [
-              {
-                attributePath: "account.plan",
-                operator: "in",
-                type: "attribute_match",
-                value: ["pro", "enterprise"],
-              },
-              {
-                attributePath: "user.id",
-                percentage: 12.5,
-                type: "percentage_rollout",
-              },
-            ],
-            conditionsMatch: "all",
-            value: true,
-          },
-        ],
+      flags: {
+        checkout: {
+          defaultValue: false,
+          killSwitch: false,
+          rules: [
+            {
+              conditions: [
+                {
+                  attributePath: "account.plan",
+                  operator: "in",
+                  type: "attribute_match",
+                  value: ["pro", "enterprise"],
+                },
+                {
+                  attributePath: "user.id",
+                  percentage: 12.5,
+                  type: "percentage_rollout",
+                },
+              ],
+              conditionsMatch: "all",
+              value: true,
+            },
+          ],
+        },
       },
+      version: "snapshot-v1",
     });
   });
 
@@ -118,7 +122,7 @@ describe("readSnapshotFlags", () => {
       value: null,
     },
   ])("rejects a condition that cannot be evaluated", (condition) => {
-    expect(() => readSnapshotFlags(buildSnapshot(condition))).toThrow(
+    expect(() => readSnapshot(buildSnapshot(condition))).toThrow(
       "FeatureGate returned an invalid snapshot response.",
     );
   });
@@ -142,6 +146,7 @@ function buildSnapshot(condition: unknown): unknown {
           ],
         },
       ],
+      version: "snapshot-v1",
     },
   };
 }
