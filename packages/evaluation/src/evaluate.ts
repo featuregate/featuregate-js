@@ -7,14 +7,25 @@ import type {
   FeatureGateFlagValue,
 } from "./types";
 
+/** Options for evaluating one flag from an in-memory snapshot. */
 export interface FeatureGateEvaluationOptions<TValue extends FeatureGateFlagValue> {
+  /** Optional targeting information for this evaluation. */
   context?: FeatureGateEvaluationContext;
+  /** The fallback returned when the flag is missing or has an incompatible value type. */
   defaultValue: TValue;
+  /** The key of the flag to evaluate. */
   flagKey: string;
+  /** The in-memory flag snapshot to evaluate. */
   flags: FeatureGateFlags;
 }
 
-/** Evaluates a flag from an in-memory configuration snapshot. */
+/**
+ * Evaluates a flag from an in-memory configuration snapshot.
+ *
+ * @typeParam TValue - The expected flag value type.
+ * @param options - The flag snapshot, requested flag, fallback value, and optional context.
+ * @returns The evaluated value and details describing how it was selected.
+ */
 export function evaluateFlag<TValue extends FeatureGateFlagValue>(
   options: FeatureGateEvaluationOptions<TValue>,
 ): FeatureGateEvaluationResult<TValue> {

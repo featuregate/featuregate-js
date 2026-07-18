@@ -37,20 +37,24 @@
   "publishConfig": {
     "access": "public"
   },
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
     "build": "tsdown",
     "lint": "oxlint",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc"
   },
+  "dependencies": {
+    "@noble/hashes": "^2.2.0"
+  },
   "devDependencies": {
+    "@featuregate/evaluation": "*",
     "@featuregate/tsconfig": "*",
     "@types/node": "^24.13.3",
     "tsdown": "^0.22.9",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
