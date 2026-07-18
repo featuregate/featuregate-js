@@ -1,4 +1,4 @@
 {
-  "extends": "@featuregate/tsconfig/base.json",
+  "extends": "@featuregate/tsconfig/node.json",
   "include": ["oxfmt.config.ts"]
 }

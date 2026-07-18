@@ -1,0 +1,26 @@
+{
+  "name": "@featuregate/evaluation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime-neutral local evaluation primitives for FeatureGate SDKs.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@featuregate/tsconfig": "*",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

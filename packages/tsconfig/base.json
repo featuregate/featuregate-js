@@ -5,17 +5,17 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "target": "esnext",
-    "allowJs": true,
     "resolveJsonModule": true,
     "moduleDetection": "force",
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
-    "module": "esnext",
+    "module": "preserve",
     "moduleResolution": "bundler",
     "noEmit": true,
     "outDir": "dist",
@@ -24,6 +24,6 @@
     "declarationMap": true,
     "incremental": false,
 
-    "lib": ["es2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2023"]
   }
 }

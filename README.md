@@ -70,6 +70,8 @@ typecheck, and test tasks as SDK workspaces are added; Oxlint checks the workspa
 ├── .github/workflows/ci.yml  # Pull request and main-branch quality checks
 ├── packages/
 │   ├── README.md             # Planned public package map
+│   ├── evaluation/           # Private runtime-neutral evaluation primitives
+│   ├── server/               # Server SDK package scaffold
 │   └── tsconfig/             # Private shared TypeScript configuration
 ├── package.json              # Private npm workspace root
 └── turbo.json                # Monorepo task graph

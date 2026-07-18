@@ -4,7 +4,8 @@ This directory will contain the public JavaScript and TypeScript SDKs for Featur
 
 The SDK implementations are still being extracted from the main FeatureGate repository. The
 `@featuregate/server` workspace is scaffolded but does not expose a functional SDK yet. The private
-`@featuregate/tsconfig` workspace gives every package the same strict compiler defaults.
+`@featuregate/evaluation` workspace owns runtime-neutral local evaluation primitives, while
+`@featuregate/tsconfig` gives every package the same strict compiler defaults.
 
 | Planned directory          | Package                                 | Runtime                                       |
 | -------------------------- | --------------------------------------- | --------------------------------------------- |

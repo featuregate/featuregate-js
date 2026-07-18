@@ -1,5 +1,5 @@
 {
-  "extends": "@featuregate/tsconfig/base.json",
+  "extends": "@featuregate/tsconfig/node.json",
   "compilerOptions": {
     "declarationMap": false,
     "noEmit": true,
