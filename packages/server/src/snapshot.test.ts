@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import runtimeSnapshotFixture from "./fixtures/runtime-snapshot.json" with { type: "json" };
 import { readSnapshot } from "./snapshot";
 
 describe("readSnapshot", () => {
@@ -72,31 +73,100 @@ describe("readSnapshot", () => {
     });
   });
 
+  it("accepts a complete snapshot from the runtime contract", () => {
+    expect(readSnapshot(runtimeSnapshotFixture)).toMatchObject({
+      flags: {
+        checkout: {
+          defaultValue: false,
+          rules: [
+            {
+              conditions: [
+                {
+                  attributePath: "account.plan",
+                  operator: "in",
+                  value: ["pro", "enterprise"],
+                },
+              ],
+              value: true,
+            },
+          ],
+        },
+      },
+      version: "snapshot_version_fixture",
+    });
+  });
+
+  it("normalizes non-evaluable wire conditions without leaking nullable domain types", () => {
+    const snapshot = readSnapshot({
+      snapshot: {
+        flags: [
+          {
+            defaultValue: false,
+            key: "checkout",
+            killSwitch: { active: false },
+            rules: [
+              {
+                conditions: [
+                  {
+                    attributePath: null,
+                    operator: "equals",
+                    rolloutPercentage: null,
+                    sortOrder: 0,
+                    type: "attribute_match",
+                    value: "pro",
+                  },
+                ],
+                conditionsMatch: "all",
+                serveValue: true,
+                sortOrder: 0,
+              },
+              {
+                conditions: [
+                  {
+                    attributePath: "account.plan",
+                    operator: "not_in",
+                    rolloutPercentage: null,
+                    sortOrder: 0,
+                    type: "attribute_match",
+                    value: "free",
+                  },
+                  {
+                    attributePath: "country",
+                    operator: "equals",
+                    rolloutPercentage: null,
+                    sortOrder: 1,
+                    type: "attribute_match",
+                    value: "AU",
+                  },
+                ],
+                conditionsMatch: "any",
+                serveValue: true,
+                sortOrder: 1,
+              },
+            ],
+          },
+        ],
+        version: "snapshot-v1",
+      },
+    });
+
+    expect(snapshot.flags.checkout?.rules).toEqual([
+      {
+        conditions: [
+          {
+            attributePath: "country",
+            operator: "equals",
+            type: "attribute_match",
+            value: "AU",
+          },
+        ],
+        conditionsMatch: "any",
+        value: true,
+      },
+    ]);
+  });
+
   it.each([
-    {
-      attributePath: "account.plan",
-      operator: "not_in",
-      rolloutPercentage: null,
-      sortOrder: 0,
-      type: "attribute_match",
-      value: "pro",
-    },
-    {
-      attributePath: "account.plan",
-      operator: "equals",
-      rolloutPercentage: null,
-      sortOrder: 0,
-      type: "attribute_match",
-      value: ["pro"],
-    },
-    {
-      attributePath: null,
-      operator: "equals",
-      rolloutPercentage: null,
-      sortOrder: 0,
-      type: "attribute_match",
-      value: "pro",
-    },
     {
       attributePath: "user.id",
       operator: null,
@@ -121,7 +191,7 @@ describe("readSnapshot", () => {
       type: "percentage_rollout",
       value: null,
     },
-  ])("rejects a condition that cannot be evaluated", (condition) => {
+  ])("rejects a condition outside the runtime contract", (condition) => {
     expect(() => readSnapshot(buildSnapshot(condition))).toThrow(
       "FeatureGate returned an invalid snapshot response.",
     );

@@ -1,4 +1,4 @@
-import { matchesPercentage } from "./rollouts";
+import { getRolloutBucket } from "./hash";
 import type {
   FeatureGateAttributeCondition,
   FeatureGateCondition,
@@ -46,7 +46,7 @@ function matchesCondition(
   if (condition.type === "percentage_rollout") {
     return (
       (typeof value === "string" || typeof value === "number" || typeof value === "boolean") &&
-      matchesPercentage(flagKey, condition.attributePath, String(value), condition.percentage)
+      getRolloutBucket(flagKey, condition.attributePath, String(value)) < condition.percentage
     );
   }
 

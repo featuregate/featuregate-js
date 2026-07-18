@@ -9,11 +9,6 @@ export { FeatureGate } from "./featuregate";
 export type { FeatureGateRefreshResult } from "./types";
 
 export type {
-  FeatureGateAttributeCondition,
-  FeatureGateComparisonScalar,
-  FeatureGateComparisonValue,
-  FeatureGateCondition,
-  FeatureGateConditionOperator,
   FeatureGateEvaluationContext,
   FeatureGateEvaluationReason,
   FeatureGateEvaluationResult,
@@ -23,8 +18,4 @@ export type {
   FeatureGateJsonObject,
   FeatureGateJsonPrimitive,
   FeatureGateJsonValue,
-  FeatureGateListCondition,
-  FeatureGatePercentageCondition,
-  FeatureGateRule,
-  FeatureGateScalarCondition,
 } from "@featuregate/evaluation";

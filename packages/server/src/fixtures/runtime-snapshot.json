@@ -1,0 +1,43 @@
+{
+  "snapshot": {
+    "version": "snapshot_version_fixture",
+    "projectId": "project_fixture",
+    "environment": {
+      "id": "env_fixture",
+      "key": "production",
+      "name": "Production"
+    },
+    "flags": [
+      {
+        "id": "flag_checkout",
+        "key": "checkout",
+        "name": "Checkout",
+        "description": "Controls the new checkout.",
+        "type": "boolean",
+        "defaultValue": false,
+        "rules": [
+          {
+            "sortOrder": 0,
+            "conditionsMatch": "all",
+            "conditions": [
+              {
+                "sortOrder": 0,
+                "type": "attribute_match",
+                "attributePath": "account.plan",
+                "operator": "in",
+                "value": ["pro", "enterprise"],
+                "rolloutPercentage": null
+              }
+            ],
+            "serveValue": true
+          }
+        ],
+        "killSwitch": {
+          "active": false,
+          "activatedAt": null
+        },
+        "updatedAt": "2026-07-18T00:00:00.000Z"
+      }
+    ]
+  }
+}

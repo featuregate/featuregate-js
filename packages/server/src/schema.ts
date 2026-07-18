@@ -8,46 +8,25 @@ const flagValueSchema = z.union([
   z.record(z.string(), z.json()),
 ]);
 
-const conditionBase = {
-  attributePath: z.string().min(1),
+const attributeConditionSchema = z.object({
+  attributePath: z.string().min(1).nullable(),
+  operator: z.enum(["equals", "not_equals", "in", "not_in"]).nullable(),
   rolloutPercentage: z.null(),
   sortOrder: z.number().int(),
   type: z.literal("attribute_match"),
-};
-
-const attributeConditionSchema = z.discriminatedUnion("operator", [
-  z.object({
-    ...conditionBase,
-    operator: z.literal("equals"),
-    value: jsonPrimitiveSchema,
-  }),
-  z.object({
-    ...conditionBase,
-    operator: z.literal("not_equals"),
-    value: jsonPrimitiveSchema,
-  }),
-  z.object({
-    ...conditionBase,
-    operator: z.literal("in"),
-    value: z.array(jsonPrimitiveSchema),
-  }),
-  z.object({
-    ...conditionBase,
-    operator: z.literal("not_in"),
-    value: z.array(jsonPrimitiveSchema),
-  }),
-]);
+  value: z.union([jsonPrimitiveSchema, z.array(jsonPrimitiveSchema)]).nullable(),
+});
 
 const percentageConditionSchema = z.object({
-  attributePath: z.string().min(1),
+  attributePath: z.string().min(1).nullable(),
   operator: z.null(),
-  rolloutPercentage: z.number().min(0).max(100),
+  rolloutPercentage: z.number().min(0).max(100).nullable(),
   sortOrder: z.number().int(),
   type: z.literal("percentage_rollout"),
   value: z.null(),
 });
 
-export const runtimeSnapshotConditionSchema = z.union([
+export const runtimeSnapshotConditionSchema = z.discriminatedUnion("type", [
   attributeConditionSchema,
   percentageConditionSchema,
 ]);

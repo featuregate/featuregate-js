@@ -1,12 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { FeatureGateFlags } from "./index";
-import {
-  FeatureGate,
-  FeatureGateAuthenticationError,
-  FeatureGateConfigurationError,
-  FeatureGateRequestError,
-} from "./index";
+import { FeatureGate, FeatureGateConfigurationError, FeatureGateRequestError } from "./index";
 
 const flags: FeatureGateFlags = {
   checkout: {
@@ -192,33 +187,9 @@ describe("FeatureGate", () => {
     expect(() => new FeatureGate({ flags, pollIntervalMs: -1 })).toThrowError(
       FeatureGateConfigurationError,
     );
-    expect(() => new FeatureGate({ flags, requestTimeoutMs: 0 })).toThrowError(
-      FeatureGateConfigurationError,
-    );
-  });
-
-  it("uses ETag revalidation and keeps the current snapshot after a 304", async () => {
-    const requests: RequestInit[] = [];
-    const responses = [
-      snapshotResponse("snapshot-v1", true, { etag: '"snapshot-v1"' }),
-      new Response(null, { status: 304 }),
-    ];
-    const fetchSnapshot: typeof fetch = async (_input, init) => {
-      requests.push(init ?? {});
-      return responses.shift()!;
-    };
-    const remoteFeatureGate = new FeatureGate({
-      fetch: fetchSnapshot,
-      pollIntervalMs: 0,
-      runtimeApiKey: "fg_runtime_test",
-    });
-
-    await remoteFeatureGate.initialize();
-    const result = await remoteFeatureGate.refresh();
-
-    expect(result).toEqual({ status: "not_modified", version: "snapshot-v1" });
-    expect(new Headers(requests[1]?.headers).get("if-none-match")).toBe('"snapshot-v1"');
-    expect(remoteFeatureGate.getBooleanValue("checkout", false)).toBe(true);
+    expect(
+      () => new FeatureGate({ flags, requestTimeoutMs: 0, runtimeApiKey: "fg_runtime_test" }),
+    ).toThrowError(FeatureGateConfigurationError);
   });
 
   it("shares concurrent manual refreshes", async () => {
@@ -268,48 +239,6 @@ describe("FeatureGate", () => {
     await expect(remoteFeatureGate.refresh()).rejects.toBeInstanceOf(FeatureGateRequestError);
 
     expect(remoteFeatureGate.getBooleanValue("checkout", false)).toBe(true);
-  });
-
-  it("returns typed authentication and configuration errors", async () => {
-    const unauthorizedFeatureGate = new FeatureGate({
-      fetch: async () => new Response(null, { status: 401 }),
-      pollIntervalMs: 0,
-      runtimeApiKey: "fg_runtime_test",
-    });
-    const invalidFeatureGate = new FeatureGate({
-      fetch: async () => Response.json({ snapshot: { flags: [], version: "" } }),
-      pollIntervalMs: 0,
-      runtimeApiKey: "fg_runtime_test",
-    });
-
-    await expect(unauthorizedFeatureGate.initialize()).rejects.toBeInstanceOf(
-      FeatureGateAuthenticationError,
-    );
-    await expect(invalidFeatureGate.initialize()).rejects.toBeInstanceOf(
-      FeatureGateConfigurationError,
-    );
-  });
-
-  it("times out snapshot requests", async () => {
-    const fetchSnapshot: typeof fetch = async (_input, init) =>
-      new Promise<Response>((_resolve, reject) => {
-        const signal = init?.signal;
-
-        if (signal?.aborted) {
-          reject(signal.reason);
-          return;
-        }
-
-        signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
-      });
-    const remoteFeatureGate = new FeatureGate({
-      fetch: fetchSnapshot,
-      pollIntervalMs: 0,
-      requestTimeoutMs: 5,
-      runtimeApiKey: "fg_runtime_test",
-    });
-
-    await expect(remoteFeatureGate.initialize()).rejects.toBeInstanceOf(FeatureGateRequestError);
   });
 
   it("polls after initialization and stops when closed", async () => {

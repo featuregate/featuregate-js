@@ -12,3 +12,13 @@ export interface FeatureGateRefreshResult {
   /** Version of the snapshot available after the refresh. */
   version: string;
 }
+
+export type RemoteSnapshotResult =
+  | {
+      snapshot: FeatureGateConfigurationSnapshot;
+      status: "updated";
+    }
+  | {
+      status: "not_modified";
+      version: string;
+    };

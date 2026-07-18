@@ -21,4 +21,16 @@ describe("rollout hashing", () => {
     expect(getRolloutBucket("checkout", "account.id", "user-123")).not.toBe(bucket);
     expect(getRolloutBucket("checkout", "user.id", "user-456")).not.toBe(bucket);
   });
+
+  it("returns buckets across the complete percentage range", () => {
+    const buckets = Array.from({ length: 10_000 }, (_, index) =>
+      getRolloutBucket("checkout", "user.id", `user-${index}`),
+    );
+    const firstQuarter = buckets.filter((bucket) => bucket < 25).length;
+
+    expect(Math.min(...buckets)).toBe(0);
+    expect(Math.max(...buckets)).toBe(99);
+    expect(firstQuarter).toBeGreaterThan(2_300);
+    expect(firstQuarter).toBeLessThan(2_700);
+  });
 });

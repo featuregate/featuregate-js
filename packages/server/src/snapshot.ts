@@ -27,7 +27,10 @@ export function readSnapshot(value: unknown): FeatureGateConfigurationSnapshot {
         {
           defaultValue: flag.defaultValue,
           killSwitch: flag.killSwitch.active,
-          rules: flag.rules.toSorted((left, right) => left.sortOrder - right.sortOrder).map(toRule),
+          rules: flag.rules
+            .toSorted((left, right) => left.sortOrder - right.sortOrder)
+            .map(toRule)
+            .filter((rule) => rule !== undefined),
         },
       ]),
     ),
@@ -37,11 +40,19 @@ export function readSnapshot(value: unknown): FeatureGateConfigurationSnapshot {
 
 type RuntimeSnapshotRule = z.infer<typeof runtimeSnapshotRuleSchema>;
 
-function toRule(rule: RuntimeSnapshotRule): FeatureGateRule {
+function toRule(rule: RuntimeSnapshotRule): FeatureGateRule | undefined {
+  const conditions = rule.conditions
+    .toSorted((left, right) => left.sortOrder - right.sortOrder)
+    .map(toCondition);
+
+  // A non-evaluable condition makes an `all` rule impossible. For `any`, valid conditions can
+  // still match independently, so only the non-evaluable conditions are omitted.
+  if (rule.conditionsMatch === "all" && conditions.includes(undefined)) {
+    return undefined;
+  }
+
   return {
-    conditions: rule.conditions
-      .toSorted((left, right) => left.sortOrder - right.sortOrder)
-      .map(toCondition),
+    conditions: conditions.filter((condition) => condition !== undefined),
     conditionsMatch: rule.conditionsMatch,
     value: rule.serveValue,
   };
@@ -49,8 +60,12 @@ function toRule(rule: RuntimeSnapshotRule): FeatureGateRule {
 
 type RuntimeSnapshotCondition = z.infer<typeof runtimeSnapshotConditionSchema>;
 
-function toCondition(condition: RuntimeSnapshotCondition): FeatureGateCondition {
+function toCondition(condition: RuntimeSnapshotCondition): FeatureGateCondition | undefined {
   if (condition.type === "percentage_rollout") {
+    if (!condition.attributePath || condition.rolloutPercentage === null) {
+      return undefined;
+    }
+
     return {
       attributePath: condition.attributePath,
       percentage: condition.rolloutPercentage,
@@ -58,13 +73,25 @@ function toCondition(condition: RuntimeSnapshotCondition): FeatureGateCondition 
     };
   }
 
+  if (!condition.attributePath || !condition.operator) {
+    return undefined;
+  }
+
   if (condition.operator === "in" || condition.operator === "not_in") {
+    if (!Array.isArray(condition.value)) {
+      return undefined;
+    }
+
     return {
       attributePath: condition.attributePath,
       operator: condition.operator,
       type: "attribute_match",
       value: condition.value,
     };
+  }
+
+  if (Array.isArray(condition.value)) {
+    return undefined;
   }
 
   return {
