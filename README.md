@@ -20,8 +20,8 @@ platform for safely controlling releases across server and browser applications.
 | `@featuregate/openfeature-provider`     | FeatureGate through the OpenFeature server SDK                  | Secret server runtime key |
 | `@featuregate/openfeature-web-provider` | FeatureGate through the OpenFeature web and React SDKs          | Publishable client key    |
 
-These package names describe the planned public surface. Public package directories and manifests
-will land together with their implementations so this repository never exposes empty SDK packages.
+These package names describe the planned public surface. `@featuregate/server` currently contains a
+buildable package scaffold only; it does not expose a functional SDK yet.
 
 ## Security model
 

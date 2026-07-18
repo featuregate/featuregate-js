@@ -1,0 +1,53 @@
+{
+  "name": "@featuregate/server",
+  "version": "0.1.0",
+  "description": "Official server-side JavaScript and TypeScript SDK for FeatureGate.",
+  "keywords": [
+    "feature-flags",
+    "feature-toggle",
+    "nodejs",
+    "sdk",
+    "typescript"
+  ],
+  "homepage": "https://featuregate.dev/docs",
+  "bugs": {
+    "url": "https://github.com/featuregate/featuregate-js/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/featuregate/featuregate-js.git",
+    "directory": "packages/server"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "lint": "oxlint",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@featuregate/tsconfig": "*",
+    "@types/node": "^24.13.3",
+    "tsdown": "^0.22.9",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
