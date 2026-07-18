@@ -6,8 +6,6 @@ export default defineConfig({
   semi: true,
   sortImports: {
     newlinesBetween: true,
-    customGroups: [
-      { elementNamePattern: ["@featuregate/"], groupName: "featuregate" },
-    ],
+    customGroups: [{ elementNamePattern: ["@featuregate/"], groupName: "featuregate" }],
   },
 });
