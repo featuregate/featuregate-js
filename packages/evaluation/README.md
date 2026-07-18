@@ -3,8 +3,8 @@
 Private, runtime-neutral evaluation primitives shared by FeatureGate SDK packages.
 
 This workspace owns flag definitions, evaluation context, conditions, local evaluation, caller
-defaults, and evaluation results. It must not depend on networking, storage, Node.js, browser,
-framework, or OpenFeature APIs. Public SDK builds bundle the code they use from this package.
+defaults, and evaluation results. It does not depend on networking, storage, Node.js, browser, or
+framework APIs. The server SDK bundles the evaluation code it uses from this package.
 
 Evaluation supports environment defaults, kill switches, ordered `all`/`any` targeting rules,
 nested attribute paths, comparison operators, and deterministic percentage conditions.

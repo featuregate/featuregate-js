@@ -7,7 +7,7 @@ import type {
 } from "@featuregate/evaluation";
 import { evaluateFlag } from "@featuregate/evaluation";
 
-import { FeatureGateConfigurationError } from "./errors";
+import { FeatureGateConfigurationError, type FeatureGateError } from "./errors";
 import { RemoteSnapshotLoader } from "./remote-snapshot";
 import type { FeatureGateRefreshResult } from "./types";
 
@@ -22,6 +22,8 @@ interface FeatureGateConfiguration {
   fetch?: typeof fetch;
   /** An optional in-memory snapshot used before remote configuration is loaded. */
   flags?: FeatureGateFlags;
+  /** Called when an automatic snapshot refresh fails. */
+  onError?: (error: FeatureGateError) => void;
   /** How often to refresh the snapshot. Set to `0` to disable automatic polling. */
   pollIntervalMs?: number;
   /** Maximum duration of each snapshot request in milliseconds. */
@@ -48,6 +50,7 @@ export class FeatureGate {
   #closed = false;
   #flags: FeatureGateFlags;
   #initialization: Promise<void> | undefined;
+  readonly #onError: ((error: FeatureGateError) => void) | undefined;
   readonly #pollIntervalMs: number;
   #pollTimer: ReturnType<typeof setInterval> | undefined;
   #refresh: Promise<FeatureGateRefreshResult> | undefined;
@@ -61,6 +64,7 @@ export class FeatureGate {
    */
   constructor(options: FeatureGateOptions) {
     this.#flags = options.flags ?? {};
+    this.#onError = options.onError;
     this.#pollIntervalMs = readPollInterval(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
 
     if (options.runtimeApiKey) {
@@ -167,7 +171,13 @@ export class FeatureGate {
 
     this.#pollTimer = setInterval(() => {
       // A failed poll leaves the previous snapshot in place and the next interval retries.
-      void this.refresh().catch(() => undefined);
+      void this.refresh().catch((error: FeatureGateError) => {
+        try {
+          this.#onError?.(error);
+        } catch {
+          // User callbacks must not stop future refresh attempts.
+        }
+      });
     }, this.#pollIntervalMs);
     this.#pollTimer.unref?.();
   }

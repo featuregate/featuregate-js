@@ -271,6 +271,41 @@ describe("FeatureGate", () => {
       vi.useRealTimers();
     }
   });
+
+  it("reports automatic refresh failures and keeps polling", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const errors: Error[] = [];
+      let requestCount = 0;
+      const remoteFeatureGate = new FeatureGate({
+        fetch: async () => {
+          requestCount += 1;
+          return requestCount === 1
+            ? snapshotResponse("snapshot-v1", true)
+            : new Response(null, { status: 503 });
+        },
+        onError: (error) => {
+          errors.push(error);
+          throw new Error("consumer callback failed");
+        },
+        pollIntervalMs: 1_000,
+        runtimeApiKey: "fg_runtime_test",
+      });
+
+      await remoteFeatureGate.initialize();
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      expect(requestCount).toBe(3);
+      expect(errors).toHaveLength(2);
+      expect(errors[0]).toBeInstanceOf(FeatureGateRequestError);
+      expect(remoteFeatureGate.getBooleanValue("checkout", false)).toBe(true);
+
+      remoteFeatureGate.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 function snapshotResponse(
