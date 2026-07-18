@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "packages": {
+    "node": {
+      "name": "@featuregate/node",
+      "path": "packages/node",
+      "tagPrefix": "node-v",
+      "currentMajor": 0,
+      "stableTag": "stable-{major}",
+      "prereleaseChannels": {
+        "alpha": "alpha-{major}",
+        "beta": "beta-{major}",
+        "rc": "rc-{major}",
+        "nightly": "nightly-{major}"
+      }
+    }
+  }
+}

@@ -54,12 +54,14 @@ typecheck, and test tasks; Oxlint checks the workspace as a whole.
 ```text
 .
 ├── .github/workflows/ci.yml  # Pull request and main-branch quality checks
+├── .github/workflows/release.yml # Tag-driven package publishing
 ├── packages/
 │   ├── README.md             # Workspace package map
 │   ├── evaluation/           # Private runtime-neutral evaluation primitives
 │   ├── node/                 # Publishable Node.js SDK
 │   └── tsconfig/             # Private shared TypeScript configuration
 ├── package.json              # Private npm workspace root
+├── release.config.json       # Package release streams and npm channels
 └── turbo.json                # Monorepo task graph
 ```
 
@@ -68,6 +70,9 @@ typecheck, and test tasks; Oxlint checks the workspace as a whole.
 Before opening a change, run the relevant linting, typechecking, testing, and build commands. Keep
 credential boundaries explicit in code, tests, and documentation. Bugs and proposals can be filed
 through [GitHub Issues](https://github.com/featuregate/featuregate-js/issues).
+
+Maintainers should follow the curated changelog and tag-based process in
+[`RELEASING.md`](./RELEASING.md) when publishing SDK packages.
 
 ## License
 

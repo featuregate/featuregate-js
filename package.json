@@ -20,7 +20,9 @@
     "build": "turbo run build",
     "format": "oxfmt --write .",
     "lint": "oxlint . --deny-warnings",
-    "test": "turbo run test",
+    "release:validate": "node scripts/release/release.mjs",
+    "test": "npm run test:release && turbo run test",
+    "test:release": "node --test scripts/release/*.test.mjs",
     "typecheck": "turbo run typecheck typecheck:root",
     "typecheck:root": "tsc"
   },
@@ -28,6 +30,7 @@
     "@types/node": "^24.13.3",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
+    "semver": "^7.8.5",
     "turbo": "^2.10.5",
     "typescript": "^6.0.3"
   },

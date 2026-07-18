@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*-v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release
+        id: release
+        run: >-
+          node scripts/release/release.mjs
+          --tag "$GITHUB_REF_NAME"
+          --github-output "$GITHUB_OUTPUT"
+          --notes "$RUNNER_TEMP/release-notes.md"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish package
+        env:
+          DIST_TAG: ${{ steps.release.outputs.dist_tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGE_NAME: ${{ steps.release.outputs.package_name }}
+          PACKAGE_PATH: ${{ steps.release.outputs.package_path }}
+          PACKAGE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published; skipping npm publish."
+          else
+            npm publish --workspace "$PACKAGE_PATH" --tag "$DIST_TAG"
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IS_LATEST: ${{ steps.release.outputs.is_latest }}
+          IS_PRERELEASE: ${{ steps.release.outputs.is_prerelease }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TITLE: ${{ steps.release.outputs.release_title }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG already has a GitHub release; skipping creation."
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            gh release create "$RELEASE_TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --prerelease \
+              --latest=false \
+              --title "$RELEASE_TITLE" \
+              --verify-tag
+          elif [ "$IS_LATEST" = "true" ]; then
+            gh release create "$RELEASE_TAG" \
+              --latest \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --title "$RELEASE_TITLE" \
+              --verify-tag
+          else
+            gh release create "$RELEASE_TAG" \
+              --latest=false \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --title "$RELEASE_TITLE" \
+              --verify-tag
+          fi

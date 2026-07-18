@@ -184,6 +184,10 @@ your secret-management system, and never include them in browser or mobile appli
 Feature flags are not an authorization boundary. Continue enforcing permissions, entitlements,
 and other security-sensitive decisions in your application.
 
+## Changelog
+
+See the [changelog](./CHANGELOG.md) for consumer-facing release notes.
+
 ## License
 
 MIT
