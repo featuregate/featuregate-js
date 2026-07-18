@@ -33,6 +33,15 @@ const flags = {
       },
     ],
   },
+  gradualCheckout: {
+    disabledValue: false,
+    enabled: true,
+    enabledValue: false,
+    rollout: {
+      allocations: [{ value: true, weight: 100_000 }],
+      seed: "gradual-checkout-v1",
+    },
+  },
 } satisfies FeatureGateFlags;
 
 describe("evaluateFlag", () => {
@@ -190,6 +199,35 @@ describe("evaluateFlag", () => {
       reason: "type_mismatch",
       usedDefault: true,
       value: "Default heading",
+    });
+  });
+
+  it("returns a rollout value when a targeting key is available", () => {
+    expect(
+      evaluateFlag({
+        context: { targetingKey: "customer-123" },
+        defaultValue: false,
+        flagKey: "gradualCheckout",
+        flags,
+      }),
+    ).toMatchObject({
+      reason: "rollout",
+      usedDefault: false,
+      value: true,
+    });
+  });
+
+  it("falls back to the enabled value when no targeting key is available", () => {
+    expect(
+      evaluateFlag({
+        defaultValue: true,
+        flagKey: "gradualCheckout",
+        flags,
+      }),
+    ).toMatchObject({
+      reason: "enabled",
+      usedDefault: false,
+      value: false,
     });
   });
 });

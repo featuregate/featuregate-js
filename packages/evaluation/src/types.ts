@@ -15,6 +15,7 @@ export interface FeatureGateFlag {
   disabledValue: FeatureGateFlagValue;
   enabled: boolean;
   enabledValue: FeatureGateFlagValue;
+  rollout?: FeatureGateRollout;
   rules?: readonly FeatureGateRule[];
 }
 
@@ -39,10 +40,22 @@ export interface FeatureGateRule {
   value: FeatureGateFlagValue;
 }
 
+export interface FeatureGateRolloutAllocation {
+  value: FeatureGateFlagValue;
+  // Integer bucket count out of 100,000.
+  weight: number;
+}
+
+export interface FeatureGateRollout {
+  allocations: readonly FeatureGateRolloutAllocation[];
+  seed: string;
+}
+
 export type FeatureGateEvaluationReason =
   | "enabled"
   | "disabled"
   | "flag_not_found"
+  | "rollout"
   | "rule_match"
   | "type_mismatch";
 

@@ -18,6 +18,9 @@
     "test": "vitest run",
     "typecheck": "tsc"
   },
+  "dependencies": {
+    "@noble/hashes": "^2.2.0"
+  },
   "devDependencies": {
     "@featuregate/tsconfig": "*",
     "typescript": "^6.0.3",

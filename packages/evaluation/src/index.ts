@@ -12,5 +12,7 @@ export type {
   FeatureGateJsonObject,
   FeatureGateJsonPrimitive,
   FeatureGateJsonValue,
+  FeatureGateRollout,
+  FeatureGateRolloutAllocation,
   FeatureGateRule,
 } from "./types";

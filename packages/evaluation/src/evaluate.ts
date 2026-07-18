@@ -1,4 +1,5 @@
 import { findMatchingRule } from "./conditions";
+import { getRolloutValue } from "./rollouts";
 import type {
   FeatureGateEvaluationContext,
   FeatureGateEvaluationResult,
@@ -30,11 +31,20 @@ export function evaluateFlag<TValue extends FeatureGateFlagValue>(
 
   const matchingRule = findMatchingRule(flag.rules, context);
 
+  if (matchingRule) {
+    return resolveValue(flagKey, matchingRule.value, defaultValue, "rule_match");
+  }
+
+  const rolloutValue =
+    flag.rollout && context
+      ? getRolloutValue(flag.rollout, flagKey, context.targetingKey)
+      : undefined;
+
   return resolveValue(
     flagKey,
-    matchingRule?.value ?? flag.enabledValue,
+    rolloutValue ?? flag.enabledValue,
     defaultValue,
-    matchingRule ? "rule_match" : "enabled",
+    rolloutValue === undefined ? "enabled" : "rollout",
   );
 }
 
@@ -42,7 +52,7 @@ function resolveValue<TValue extends FeatureGateFlagValue>(
   flagKey: string,
   value: FeatureGateFlagValue,
   defaultValue: TValue,
-  reason: "disabled" | "enabled" | "rule_match",
+  reason: "disabled" | "enabled" | "rollout" | "rule_match",
 ): FeatureGateEvaluationResult<TValue> {
   if (!hasCompatibleType(value, defaultValue)) {
     return useDefault(flagKey, defaultValue, "type_mismatch");
