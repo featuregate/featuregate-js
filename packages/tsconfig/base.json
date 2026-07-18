@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "FeatureGate TypeScript Configuration",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "esnext",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    "incremental": false,
+
+    "lib": ["es2022", "DOM", "DOM.Iterable"]
+  }
+}
