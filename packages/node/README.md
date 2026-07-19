@@ -101,6 +101,9 @@ Evaluation reasons are:
 
 Use `targetingKey` for a stable subject identifier and `attributes` for application-specific data.
 Nested attributes can be addressed by dot-separated targeting paths configured in FeatureGate.
+The SDK's `attributes` object corresponds to the root of the direct API's `context` object. For
+example, SDK attributes `{ account: { plan: "pro" } }` are equivalent to sending
+`{ "context": { "account": { "plan": "pro" } } }` to `POST /v1/evaluate`.
 
 ```ts
 const context = {

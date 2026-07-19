@@ -124,6 +124,21 @@ describe("readSnapshot", () => {
                 conditions: [
                   {
                     attributePath: "account.plan",
+                    operator: "equals",
+                    rolloutPercentage: null,
+                    sortOrder: 0,
+                    type: "attribute_match",
+                    value: ["pro"],
+                  },
+                ],
+                conditionsMatch: "all",
+                serveValue: true,
+                sortOrder: 1,
+              },
+              {
+                conditions: [
+                  {
+                    attributePath: "account.plan",
                     operator: "not_in",
                     rolloutPercentage: null,
                     sortOrder: 0,
@@ -141,7 +156,7 @@ describe("readSnapshot", () => {
                 ],
                 conditionsMatch: "any",
                 serveValue: true,
-                sortOrder: 1,
+                sortOrder: 2,
               },
             ],
           },

@@ -59,7 +59,7 @@ function matchesAttribute(condition: FeatureGateAttributeCondition, actual: unkn
   }
 
   if (condition.operator === "not_equals") {
-    return isComparable(actual) && actual !== condition.value;
+    return !(isComparable(actual) && actual === condition.value);
   }
 
   const includes =

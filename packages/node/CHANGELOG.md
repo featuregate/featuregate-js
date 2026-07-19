@@ -8,6 +8,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Aligned negative targeting comparisons with `POST /v1/evaluate` when an existing context value
+  is a JSON object or array.
+
 ## [0.2.0] - 2026-07-18
 
 This release makes remote configuration faster to react to changes and easier to operate in

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateFlag, type FeatureGateFlags } from "./index";
+import {
+  evaluateFlag,
+  type FeatureGateAttributeCondition,
+  type FeatureGateEvaluationContext,
+  type FeatureGateFlags,
+  type FeatureGateJsonValue,
+} from "./index";
 
 const flags = {
   checkout: {
@@ -80,6 +86,75 @@ describe("evaluateFlag", () => {
       }),
     ).toMatchObject({ reason: "targeting_match", usedDefault: false, value: true });
   });
+
+  it.each([
+    {
+      actual: "pro",
+      condition: attributeCondition("equals", "pro"),
+      expectedReason: "targeting_match",
+      name: "equals matching primitives",
+    },
+    {
+      actual: "free",
+      condition: attributeCondition("equals", "pro"),
+      expectedReason: "environment_default",
+      name: "equals different primitives",
+    },
+    {
+      actual: "free",
+      condition: attributeCondition("not_equals", "pro"),
+      expectedReason: "targeting_match",
+      name: "not_equals different primitives",
+    },
+    {
+      actual: { plan: "pro" },
+      condition: attributeCondition("not_equals", "pro"),
+      expectedReason: "targeting_match",
+      name: "not_equals compound values",
+    },
+    {
+      condition: attributeCondition("not_equals", "pro"),
+      expectedReason: "environment_default",
+      name: "not_equals missing paths",
+    },
+    {
+      actual: "team",
+      condition: attributeCondition("in", ["pro", "team"]),
+      expectedReason: "targeting_match",
+      name: "in list members",
+    },
+    {
+      actual: "pro",
+      condition: attributeCondition("not_in", ["free", "starter"]),
+      expectedReason: "targeting_match",
+      name: "not_in non-members",
+    },
+    {
+      condition: attributeCondition("not_in", ["free", "starter"]),
+      expectedReason: "environment_default",
+      name: "not_in missing paths",
+    },
+  ] satisfies readonly AttributeParityCase[])(
+    "matches the runtime API for $name",
+    ({ actual, condition, expectedReason }) => {
+      const context: FeatureGateEvaluationContext = {
+        attributes: actual === undefined ? {} : { candidate: actual },
+      };
+      const parityFlags = {
+        parity: {
+          defaultValue: false,
+          rules: [{ conditions: [condition], conditionsMatch: "all", value: true }],
+        },
+      } satisfies FeatureGateFlags;
+
+      expect(
+        evaluateFlag({ context, defaultValue: false, flagKey: "parity", flags: parityFlags }),
+      ).toMatchObject({
+        reason: expectedReason,
+        value: expectedReason === "targeting_match",
+      });
+    },
+  );
 
   it("supports any-condition rules and the built-in targeting key", () => {
     const targetedFlags = {
@@ -180,4 +255,77 @@ describe("evaluateFlag", () => {
       }),
     ).toMatchObject({ reason: "targeting_match", value: true });
   });
+
+  it("uses the first matching ordered rule", () => {
+    const orderedFlags = {
+      checkout: {
+        defaultValue: false,
+        rules: [
+          {
+            conditions: [attributeCondition("equals", "pro")],
+            conditionsMatch: "all",
+            value: true,
+          },
+          {
+            conditions: [attributeCondition("equals", "pro")],
+            conditionsMatch: "all",
+            value: false,
+          },
+        ],
+      },
+    } satisfies FeatureGateFlags;
+
+    expect(
+      evaluateFlag({
+        context: { attributes: { candidate: "pro" } },
+        defaultValue: false,
+        flagKey: "checkout",
+        flags: orderedFlags,
+      }),
+    ).toMatchObject({ reason: "targeting_match", value: true });
+  });
 });
+
+interface AttributeParityCase {
+  actual?: FeatureGateJsonValue;
+  condition: FeatureGateAttributeCondition;
+  expectedReason: "environment_default" | "targeting_match";
+  name: string;
+}
+
+function attributeCondition(
+  operator: "equals" | "not_equals",
+  value: string,
+): FeatureGateAttributeCondition;
+function attributeCondition(
+  operator: "in" | "not_in",
+  value: string[],
+): FeatureGateAttributeCondition;
+function attributeCondition(
+  operator: FeatureGateAttributeCondition["operator"],
+  value: string | string[],
+): FeatureGateAttributeCondition {
+  if (operator === "in" || operator === "not_in") {
+    if (!Array.isArray(value)) {
+      throw new TypeError(`${operator} requires an array value.`);
+    }
+
+    return {
+      attributePath: "candidate",
+      operator,
+      type: "attribute_match",
+      value,
+    };
+  }
+
+  if (Array.isArray(value)) {
+    throw new TypeError(`${operator} requires a scalar value.`);
+  }
+
+  return {
+    attributePath: "candidate",
+    operator,
+    type: "attribute_match",
+    value,
+  };
+}
