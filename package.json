@@ -32,7 +32,7 @@
     "oxlint": "1.74.0",
     "semver": "7.8.5",
     "turbo": "2.10.5",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "engines": {
     "node": ">=24.18.0",
